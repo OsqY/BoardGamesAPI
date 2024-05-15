@@ -108,3 +108,4 @@
 /home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/obj/Debug/net8.0/UserSecretsAssemblyInfo.cs
 /home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/CsvHelper.dll
 /home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/System.Linq.Dynamic.Core.dll
+/home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/obj/Debug/net8.0/MyBGList.sourcelink.json
