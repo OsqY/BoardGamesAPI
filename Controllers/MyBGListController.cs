@@ -1,8 +1,11 @@
+using System.Linq.Dynamic.Core;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using MyBGList.Constants;
 using MyBGList.DTO;
 using MyBGList.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Linq.Dynamic.Core;
 
 namespace MyBGList.Controllers
 {
@@ -12,46 +15,76 @@ namespace MyBGList.Controllers
     {
         private readonly ILogger<MyBGListController> _logger;
         private readonly AppDbContext _context;
+        private readonly IMemoryCache _memoryCache;
 
-        public MyBGListController(ILogger<MyBGListController> logger, AppDbContext appDb)
+        public MyBGListController(
+            ILogger<MyBGListController> logger,
+            AppDbContext appDb,
+            IMemoryCache memoryCache
+        )
         {
             _logger = logger;
             _context = appDb;
+            _memoryCache = memoryCache;
         }
 
         [HttpGet]
-        [ResponseCache(Location = ResponseCacheLocation.Any, Duration = 60)]
+        [ResponseCache(CacheProfileName = "Any-60")]
         public async Task<RestDTO<BoardGame[]>> Get([FromQuery] RequestDTO<BoardGameDTO> input)
         {
-            var query = _context.BoardGames.AsQueryable();
+            _logger.LogInformation(CustomLogEvents.MyBGListController_Get, "Method started");
 
-            if (!string.IsNullOrEmpty(input.FilterQuery))
-                query = query.Where(b => b.Name.Contains(input.FilterQuery));
+            (int recordCount, BoardGame[]? result) dataTuple = (0, null);
+            var cacheKey = $"{input.GetType()}-{JsonSerializer.Serialize(input)}";
 
-            var recordCount = await query.CountAsync();
-            query = query
-              .OrderBy($"{input.SortColumn} {input.SortOrder}")
-              .Skip(input.PageIndex * input.PageSize).Take(input.PageSize);
+            if (!_memoryCache.TryGetValue(cacheKey, out dataTuple))
+            {
+                System.Console.WriteLine("nothing in cache");
+
+                var query = _context.BoardGames.AsQueryable();
+                if (!string.IsNullOrEmpty(input.FilterQuery))
+                    query = query.Where(b => b.Name.Contains(input.FilterQuery));
+
+                dataTuple.recordCount = await query.CountAsync();
+
+                query = query
+                    .OrderBy($"{input.SortColumn} {input.SortOrder}")
+                    .Skip(input.PageIndex * input.PageSize)
+                    .Take(input.PageSize);
+
+                dataTuple.result = await query.ToArrayAsync();
+                _memoryCache.Set(cacheKey, dataTuple, new TimeSpan(0, 0, 30));
+            }
 
             return new RestDTO<BoardGame[]>()
             {
-                Data = await query.ToArrayAsync(),
+                Data = dataTuple.result,
                 PageIndex = input.PageIndex,
                 PageSize = input.PageSize,
-                RecordCount = recordCount,
-                Links = new List<LinkDTO>() {
-                 new LinkDTO(Url.Action(null, "BoardGames",
-                       new{input.PageIndex, input.PageSize}, Request.Scheme)!,
-                     "self", "GET"),
-               }
+                RecordCount = dataTuple.recordCount,
+                Links = new List<LinkDTO>()
+                {
+                    new LinkDTO(
+                        Url.Action(
+                            null,
+                            "BoardGames",
+                            new { input.PageIndex, input.PageSize },
+                            Request.Scheme
+                        )!,
+                        "self",
+                        "GET"
+                    ),
+                }
             };
         }
 
         [HttpPost(Name = "UpdateBoardGame")]
-        [ResponseCache(NoStore = true)]
+        [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<RestDTO<BoardGame?>> Post(BoardGameDTO model)
         {
-            BoardGame? boardGame = await _context.BoardGames.Where(b => b.Id == model.Id).FirstOrDefaultAsync();
+            BoardGame? boardGame = await _context
+                .BoardGames.Where(b => b.Id == model.Id)
+                .FirstOrDefaultAsync();
             if (boardGame != null)
             {
                 if (!string.IsNullOrEmpty(model.Name))
@@ -62,22 +95,23 @@ namespace MyBGList.Controllers
                 boardGame.LastModifiedDate = DateTime.Now;
                 _context.BoardGames.Update(boardGame);
                 await _context.SaveChangesAsync();
-
             }
             return new RestDTO<BoardGame?>()
             {
                 Data = boardGame,
-                Links = new List<LinkDTO>() {
-                         new LinkDTO (
-                           Url.Action(null, "BoardGames",
-                               model,Request.Scheme)!,
-                           "self", "POST")
-                       }
+                Links = new List<LinkDTO>()
+                {
+                    new LinkDTO(
+                        Url.Action(null, "BoardGames", model, Request.Scheme)!,
+                        "self",
+                        "POST"
+                    )
+                }
             };
         }
 
         [HttpDelete(Name = "DeleteBoardGame")]
-        [ResponseCache(NoStore = true)]
+        [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<RestDTO<BoardGame?>> Delete(int id)
         {
             var boardGame = await _context.BoardGames.Where(b => b.Id == id).FirstOrDefaultAsync();
@@ -90,12 +124,14 @@ namespace MyBGList.Controllers
             return new RestDTO<BoardGame?>()
             {
                 Data = boardGame,
-                Links = new List<LinkDTO>() {
-                     new LinkDTO(
-                         Url.Action(null, "BoardGames", id, Request.Scheme)!,
-                         "self","DELETE"
-                         )
-                   }
+                Links = new List<LinkDTO>()
+                {
+                    new LinkDTO(
+                        Url.Action(null, "BoardGames", id, Request.Scheme)!,
+                        "self",
+                        "DELETE"
+                    )
+                }
             };
         }
     }
