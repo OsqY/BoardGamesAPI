@@ -1,14 +1,17 @@
 using System.Linq.Dynamic.Core;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using MyBGList.Constants;
 using MyBGList.DTO;
 using MyBGList.Extensions;
 using MyBGList.Models;
 
 namespace MyBGList.Controllers
 {
+    [Authorize(Roles = RoleNames.Moderator)]
     [Route("[controller]")]
     [ApiController]
     public class MechanicController : ControllerBase
@@ -29,7 +32,7 @@ namespace MyBGList.Controllers
         }
 
         [HttpGet]
-        [ResponseCache(Duration = 120)]
+        [ResponseCache(CacheProfileName = "Any-60")]
         public async Task<RestDTO<Mechanic[]>> Get([FromQuery] RequestDTO<MechanicDTO> input)
         {
             var query = _context.Mechanics.AsQueryable();
@@ -98,6 +101,7 @@ namespace MyBGList.Controllers
             };
         }
 
+        [Authorize(Roles = RoleNames.Administrator)]
         [HttpDelete("DeleteMechanic")]
         [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<RestDTO<Mechanic?>> Delete(int id)

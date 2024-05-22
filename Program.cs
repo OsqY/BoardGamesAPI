@@ -1,8 +1,12 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using MyBGList.Constants;
 using MyBGList.Models;
 using MyBGList.Swagger;
@@ -58,6 +62,34 @@ builder.Services.AddSwaggerGen(opts =>
 {
     opts.ParameterFilter<SortColumnFilter>();
     opts.ParameterFilter<SortOrderFilter>();
+    opts.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            In = ParameterLocation.Header,
+            Description = "Please enter token",
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            BearerFormat = "JWT",
+            Scheme = "bearer"
+        }
+    );
+    opts.AddSecurityRequirement(
+        new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        }
+    );
 });
 
 var connString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -65,6 +97,43 @@ var connString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseMySql(connString, ServerVersion.AutoDetect(connString))
 );
+
+builder
+    .Services.AddIdentity<ApiUser, IdentityRole>(opts =>
+    {
+        opts.Password.RequireDigit = true;
+        opts.Password.RequireLowercase = true;
+        opts.Password.RequireUppercase = true;
+        opts.Password.RequireNonAlphanumeric = true;
+        opts.Password.RequiredLength = 12;
+    })
+    .AddEntityFrameworkStores<AppDbContext>();
+
+builder
+    .Services.AddAuthentication(opts =>
+    {
+        opts.DefaultAuthenticateScheme =
+            opts.DefaultChallengeScheme =
+            opts.DefaultForbidScheme =
+            opts.DefaultScheme =
+            opts.DefaultSignInScheme =
+            opts.DefaultSignOutScheme =
+                JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(opts =>
+    {
+        opts.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["JWT:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["JWT:Audience"],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"])
+            )
+        };
+    });
 
 /* builder.Services.Configure<ApiBehaviorOptions>(opts => */
 /* { */
@@ -117,6 +186,7 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseResponseCaching();
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.Use(
     (context, next) =>
@@ -164,6 +234,27 @@ app.MapGet(
     () =>
     {
         throw new Exception("error");
+    }
+);
+
+app.MapGet(
+    "auth/test/2",
+    [Authorize(Roles = RoleNames.Moderator)]
+    [EnableCors("AnyOrigin")]
+    [ResponseCache(NoStore = true)]
+    () =>
+    {
+        return Results.Ok("Auth");
+    }
+);
+app.MapGet(
+    "auth/test/3",
+    [Authorize(Roles = RoleNames.Administrator)]
+    [EnableCors("AnyOrigin")]
+    [ResponseCache(NoStore = true)]
+    () =>
+    {
+        return Results.Ok("Auth");
     }
 );
 

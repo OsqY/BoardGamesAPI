@@ -2,7 +2,6 @@ namespace MyBGList.Constants
 {
     public class CustomLogEvents
     {
-
         public const int Error_Get = 50001;
 
         public const int MyBGListController_Get = 50110;

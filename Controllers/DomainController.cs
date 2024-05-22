@@ -1,12 +1,15 @@
 using System.Linq.Dynamic.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MyBGList.Attributes;
+using MyBGList.Constants;
 using MyBGList.DTO;
 using MyBGList.Models;
 
 namespace MyBGList.Controllers
 {
+    [Authorize(Roles = RoleNames.Moderator)]
     [Route("[controller]")]
     [ApiController]
     public class DomainController : ControllerBase
@@ -108,6 +111,7 @@ namespace MyBGList.Controllers
             };
         }
 
+        [Authorize(Roles = RoleNames.Administrator)]
         [HttpDelete(Name = "DeleteDomain")]
         [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<RestDTO<Domain?>> Delete(int id)

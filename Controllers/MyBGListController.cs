@@ -1,5 +1,6 @@
 using System.Linq.Dynamic.Core;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,6 +10,7 @@ using MyBGList.Models;
 
 namespace MyBGList.Controllers
 {
+    [Authorize(Roles = RoleNames.Moderator)]
     [Route("[controller]")]
     [ApiController]
     public class MyBGListController : ControllerBase
@@ -28,6 +30,7 @@ namespace MyBGList.Controllers
             _memoryCache = memoryCache;
         }
 
+        /* [AllowAnonymous] */
         [HttpGet]
         [ResponseCache(CacheProfileName = "Any-60")]
         public async Task<RestDTO<BoardGame[]>> Get([FromQuery] RequestDTO<BoardGameDTO> input)
@@ -110,6 +113,7 @@ namespace MyBGList.Controllers
             };
         }
 
+        [Authorize(Roles = RoleNames.Administrator)]
         [HttpDelete(Name = "DeleteBoardGame")]
         [ResponseCache(CacheProfileName = "NoCache")]
         public async Task<RestDTO<BoardGame?>> Delete(int id)

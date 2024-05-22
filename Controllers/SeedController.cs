@@ -1,35 +1,45 @@
 using System.Globalization;
 using CsvHelper;
 using CsvHelper.Configuration;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MyBGList.Constants;
 using MyBGList.Models;
 using MyBGList.Models.Csv;
 
 namespace MyBGList.Controllers
 {
-    [Route("[controller]")]
+    [Authorize(Roles = RoleNames.Administrator)]
+    [Route("[controller]/[action]")]
     [ApiController]
     public class SeedController : ControllerBase
     {
         private readonly AppDbContext _context;
         private readonly ILogger<SeedController> _logger;
         private readonly IWebHostEnvironment _env;
+        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly UserManager<ApiUser> _userManager;
 
         public SeedController(
             AppDbContext context,
             ILogger<SeedController> logger,
-            IWebHostEnvironment env
+            IWebHostEnvironment env,
+            RoleManager<IdentityRole> roleManager,
+            UserManager<ApiUser> userManager
         )
         {
             _context = context;
             _logger = logger;
             _env = env;
+            _roleManager = roleManager;
+            _userManager = userManager;
         }
 
-        [HttpPut(Name = "Seed")]
+        [HttpPut]
         [ResponseCache(CacheProfileName = "NoCache")]
-        public async Task<IActionResult> Put(int? id)
+        public async Task<IActionResult> BoardGameData()
         {
             //SETUP
             var config = new CsvConfiguration(CultureInfo.GetCultureInfo("pt-BR"))
@@ -155,6 +165,72 @@ namespace MyBGList.Controllers
                     Mechanics = _context.Mechanics.Count(),
                     SkippedRows = skippedRows
                 }
+            );
+        }
+
+        [HttpPost]
+        [ResponseCache(CacheProfileName = "NoCache")]
+        public async Task<IActionResult> AuthData()
+        {
+            int rolesCreated = 0;
+            int userAddedToRoles = 0;
+
+            if (!await _roleManager.RoleExistsAsync(RoleNames.Moderator))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(RoleNames.Moderator));
+                rolesCreated++;
+            }
+
+            if (!await _roleManager.RoleExistsAsync(RoleNames.Administrator))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(RoleNames.Administrator));
+                rolesCreated++;
+            }
+
+            if (!await _roleManager.RoleExistsAsync(RoleNames.SuperAdmin))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(RoleNames.Administrator));
+                rolesCreated++;
+            }
+
+            ApiUser? testModerator = await _userManager.FindByNameAsync("TestModerator");
+
+            if (
+                testModerator != null
+                && !await _userManager.IsInRoleAsync(testModerator, RoleNames.Moderator)
+            )
+            {
+                await _userManager.AddToRoleAsync(testModerator, RoleNames.Moderator);
+                userAddedToRoles++;
+            }
+
+            ApiUser? testAdministrator = await _userManager.FindByNameAsync("TestAdministrator");
+
+            if (
+                testAdministrator != null
+                && !await _userManager.IsInRoleAsync(testAdministrator, RoleNames.Administrator)
+            )
+            {
+                await _userManager.AddToRoleAsync(testAdministrator, RoleNames.Moderator);
+                await _userManager.AddToRoleAsync(testAdministrator, RoleNames.Administrator);
+                userAddedToRoles++;
+            }
+
+            ApiUser? testSuperAdmin = await _userManager.FindByNameAsync("TestSuperAdmin");
+
+            if (
+                testSuperAdmin != null
+                && !await _userManager.IsInRoleAsync(testSuperAdmin, RoleNames.SuperAdmin)
+            )
+            {
+                await _userManager.AddToRoleAsync(testSuperAdmin, RoleNames.Moderator);
+                await _userManager.AddToRoleAsync(testSuperAdmin, RoleNames.Administrator);
+                await _userManager.AddToRoleAsync(testSuperAdmin, RoleNames.SuperAdmin);
+                userAddedToRoles++;
+            }
+
+            return new JsonResult(
+                new { RolesCreated = rolesCreated, UsersAddedToRoles = userAddedToRoles }
             );
         }
     }
