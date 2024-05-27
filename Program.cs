@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MyBGList.Constants;
+using MyBGList.GraphQL;
 using MyBGList.Models;
 using MyBGList.Swagger;
 
@@ -97,6 +98,14 @@ var connString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseMySql(connString, ServerVersion.AutoDetect(connString))
 );
+
+builder.Services.AddGraphQLServer()
+  .AddAuthorization()
+  .AddQueryType<Query>()
+  .AddMutationType<Mutation>()
+  .AddProjections()
+  .AddFiltering()
+  .AddSorting();
 
 builder
     .Services.AddIdentity<ApiUser, IdentityRole>(opts =>
@@ -201,14 +210,16 @@ app.Use(
     }
 );
 
+app.MapGraphQL();
+
 app.MapGet(
     "/error",
     [EnableCors("AnyOrigin")]
-    [ResponseCache(NoStore = true)]
-    (HttpContext context) =>
+[ResponseCache(NoStore = true)]
+(HttpContext context) =>
     {
         IExceptionHandlerPathFeature? exceptionHandler =
-            context.Features.Get<IExceptionHandlerPathFeature>();
+                context.Features.Get<IExceptionHandlerPathFeature>();
         ProblemDetails details = new ProblemDetails();
 
         details.Detail = exceptionHandler?.Error.Message;
@@ -230,8 +241,8 @@ app.MapGet(
 app.MapGet(
     "/test",
     [EnableCors("AnyOrigin")]
-    [ResponseCache(NoStore = true)]
-    () =>
+[ResponseCache(NoStore = true)]
+() =>
     {
         throw new Exception("error");
     }
@@ -240,9 +251,9 @@ app.MapGet(
 app.MapGet(
     "auth/test/2",
     [Authorize(Roles = RoleNames.Moderator)]
-    [EnableCors("AnyOrigin")]
-    [ResponseCache(NoStore = true)]
-    () =>
+[EnableCors("AnyOrigin")]
+[ResponseCache(NoStore = true)]
+() =>
     {
         return Results.Ok("Auth");
     }
@@ -250,9 +261,9 @@ app.MapGet(
 app.MapGet(
     "auth/test/3",
     [Authorize(Roles = RoleNames.Administrator)]
-    [EnableCors("AnyOrigin")]
-    [ResponseCache(NoStore = true)]
-    () =>
+[EnableCors("AnyOrigin")]
+[ResponseCache(NoStore = true)]
+() =>
     {
         return Results.Ok("Auth");
     }
