@@ -1,12 +1,11 @@
+using System.ComponentModel.DataAnnotations;
 using MyBGList.Attributes;
 using DefaultValueAttribute = System.ComponentModel.DefaultValueAttribute;
-using System.ComponentModel.DataAnnotations;
 
 namespace MyBGList.DTO
 {
     public class RequestDTO<T> : IValidatableObject
     {
-
         [DefaultValue(0)]
         public int PageIndex { get; set; } = 0;
 
@@ -29,8 +28,7 @@ namespace MyBGList.DTO
             var validator = new SortColumnValidatorAttribute(typeof(T));
             var result = validator.GetValidationResult(SortColumn, context);
 
-            return (result != null)
-               ? new[] { result } : new ValidationResult[0];
+            return (result != null) ? new[] { result } : new ValidationResult[0];
         }
     }
 }

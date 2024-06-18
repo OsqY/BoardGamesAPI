@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -11,6 +12,7 @@ using MyBGList.Constants;
 using MyBGList.GraphQL;
 using MyBGList.Models;
 using MyBGList.Swagger;
+using Swashbuckle.AspNetCore.Annotations;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders().AddSimpleConsole().AddDebug();
@@ -61,6 +63,9 @@ builder.Services.AddControllers(opts =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(opts =>
 {
+    opts.EnableAnnotations();
+    var xmlFileName = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    opts.IncludeXmlComments(System.IO.Path.Combine(AppContext.BaseDirectory, xmlFileName));
     opts.ParameterFilter<SortColumnFilter>();
     opts.ParameterFilter<SortOrderFilter>();
     opts.AddSecurityDefinition(
@@ -75,22 +80,9 @@ builder.Services.AddSwaggerGen(opts =>
             Scheme = "bearer"
         }
     );
-    opts.AddSecurityRequirement(
-        new OpenApiSecurityRequirement
-        {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
-        }
-    );
+    opts.OperationFilter<AuthRequirementFilter>();
+    opts.DocumentFilter<CustomDocumentFilter>();
+    opts.RequestBodyFilter<PasswordRequestFilter>();
 });
 
 var connString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -99,13 +91,14 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseMySql(connString, ServerVersion.AutoDetect(connString))
 );
 
-builder.Services.AddGraphQLServer()
-  .AddAuthorization()
-  .AddQueryType<Query>()
-  .AddMutationType<Mutation>()
-  .AddProjections()
-  .AddFiltering()
-  .AddSorting();
+builder
+    .Services.AddGraphQLServer()
+    .AddAuthorization()
+    .AddQueryType<Query>()
+    .AddMutationType<Mutation>()
+    .AddProjections()
+    .AddFiltering()
+    .AddSorting();
 
 builder
     .Services.AddIdentity<ApiUser, IdentityRole>(opts =>
@@ -215,11 +208,11 @@ app.MapGraphQL();
 app.MapGet(
     "/error",
     [EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)]
-(HttpContext context) =>
+    [ResponseCache(NoStore = true)]
+    (HttpContext context) =>
     {
         IExceptionHandlerPathFeature? exceptionHandler =
-                context.Features.Get<IExceptionHandlerPathFeature>();
+            context.Features.Get<IExceptionHandlerPathFeature>();
         ProblemDetails details = new ProblemDetails();
 
         details.Detail = exceptionHandler?.Error.Message;
@@ -241,8 +234,8 @@ app.MapGet(
 app.MapGet(
     "/test",
     [EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)]
-() =>
+    [ResponseCache(NoStore = true)]
+    () =>
     {
         throw new Exception("error");
     }
@@ -251,9 +244,14 @@ app.MapGet(
 app.MapGet(
     "auth/test/2",
     [Authorize(Roles = RoleNames.Moderator)]
-[EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)]
-() =>
+    [EnableCors("AnyOrigin")]
+    [ResponseCache(NoStore = true)]
+    [SwaggerOperation(
+        Tags = new[] { "Auth" },
+        Summary = "Auth test #1 (authenticated users). ",
+        Description = "Returns 200-OK if called by an authenticated user."
+    )]
+    () =>
     {
         return Results.Ok("Auth");
     }
@@ -261,9 +259,14 @@ app.MapGet(
 app.MapGet(
     "auth/test/3",
     [Authorize(Roles = RoleNames.Administrator)]
-[EnableCors("AnyOrigin")]
-[ResponseCache(NoStore = true)]
-() =>
+    [EnableCors("AnyOrigin")]
+    [ResponseCache(NoStore = true)]
+    [SwaggerOperation(
+        Tags = new[] { "Auth" },
+        Summary = "Auth test #2 (authenticated users). ",
+        Description = "Returns 200-OK if called by an authenticated user (Administrator)."
+    )]
+    () =>
     {
         return Results.Ok("Auth");
     }

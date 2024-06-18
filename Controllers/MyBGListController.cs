@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using MyBGList.Constants;
 using MyBGList.DTO;
 using MyBGList.Models;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace MyBGList.Controllers
 {
@@ -33,7 +34,17 @@ namespace MyBGList.Controllers
         [AllowAnonymous]
         [HttpGet]
         [ResponseCache(CacheProfileName = "Any-60")]
-        public async Task<RestDTO<BoardGame[]>> Get([FromQuery] RequestDTO<BoardGameDTO> input)
+        [SwaggerOperation(
+            Summary = "Get a list of board games.",
+            Description = "Retrieves a list of board games with custom paging, sorting and filtering rules."
+        )]
+        public async Task<RestDTO<BoardGame[]>> Get(
+            [FromQuery]
+            [SwaggerParameter(
+                "A DTO object that can be used to customize data retrieval parameters."
+            )]
+                RequestDTO<BoardGameDTO> input
+        )
         {
             _logger.LogInformation(CustomLogEvents.MyBGListController_Get, "Method started");
 
@@ -84,9 +95,16 @@ namespace MyBGList.Controllers
         [AllowAnonymous]
         [HttpGet("{id}")]
         [ResponseCache(CacheProfileName = "Any-60")]
+        [SwaggerOperation(
+            Summary = "Get a single board game.",
+            Description = "Retrieves a single board game by the given ID."
+        )]
         public async Task<RestDTO<BoardGame?>> GetBoardGame(int id)
         {
-            _logger.LogInformation(CustomLogEvents.MyBGListController_Get, "GET BoardGame method started");
+            _logger.LogInformation(
+                CustomLogEvents.MyBGListController_Get,
+                "GET BoardGame method started"
+            );
 
             BoardGame? result = null;
 
@@ -103,15 +121,25 @@ namespace MyBGList.Controllers
                 PageIndex = 0,
                 PageSize = 1,
                 RecordCount = result != null ? 1 : 0,
-                Links = new List<LinkDTO>() {
-                     new LinkDTO(Url.Action(null, "BoardGames", new {id}, Request.Scheme)!, "self", "GET")
+                Links = new List<LinkDTO>()
+                {
+                    new LinkDTO(
+                        Url.Action(null, "BoardGames", new { id }, Request.Scheme)!,
+                        "self",
+                        "GET"
+                    )
                 }
             };
         }
 
-
         [HttpPost(Name = "UpdateBoardGame")]
         [ResponseCache(CacheProfileName = "NoCache")]
+        [SwaggerOperation(
+            Summary = "Updates a single board game.",
+            Description = "Updates the board game's data."
+        )]
+        [SwaggerResponse(StatusCodes.Status200OK, "Authorized")]
+        [SwaggerResponse(StatusCodes.Status401Unauthorized, "Unauthorized")]
         public async Task<RestDTO<BoardGame?>> Post(BoardGameDTO model)
         {
             BoardGame? boardGame = await _context
@@ -145,6 +173,10 @@ namespace MyBGList.Controllers
         [Authorize(Roles = RoleNames.Administrator)]
         [HttpDelete(Name = "DeleteBoardGame")]
         [ResponseCache(CacheProfileName = "NoCache")]
+        [SwaggerOperation(
+            Summary = "Deletes a single board game.",
+            Description = "Deletes a board game from the database."
+        )]
         public async Task<RestDTO<BoardGame?>> Delete(int id)
         {
             var boardGame = await _context.BoardGames.Where(b => b.Id == id).FirstOrDefaultAsync();

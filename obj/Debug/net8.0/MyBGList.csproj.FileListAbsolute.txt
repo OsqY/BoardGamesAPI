@@ -158,3 +158,6 @@
 /home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/HotChocolate.Validation.dll
 /home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/System.IO.Hashing.dll
 /home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/Yarp.ReverseProxy.dll
+/home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/MyBGList.xml
+/home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/obj/Debug/net8.0/MyBGList.xml
+/home/oscar/Desktop/C#/BuildingWebAPIS/MyBGList/bin/Debug/net8.0/Swashbuckle.AspNetCore.Annotations.dll

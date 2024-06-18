@@ -3,8 +3,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using MyBGList.Models;
 using MyBGList.DTO;
+using MyBGList.Models;
 
 namespace MyBGList.Controllers
 {
@@ -33,8 +33,16 @@ namespace MyBGList.Controllers
             _signInManager = signInManager;
         }
 
+        /// <summary>
+        /// Registers a new user.
+        /// </summary>
+        /// <param name="input"> A DTO containing the user data. </param>
+        /// <returns>A 201-Created Status Code in case of success.</returns>
         [HttpPost]
         [ResponseCache(CacheProfileName = "NoCache")]
+        [ProducesResponseType(typeof(string), 201)]
+        [ProducesResponseType(typeof(BadRequestObjectResult), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 500)]
         public async Task<ActionResult> Register(RegisterDTO input)
         {
             try
@@ -83,8 +91,16 @@ namespace MyBGList.Controllers
             }
         }
 
+        /// <summary>
+        /// Performs a user login.
+        /// </summary>
+        /// <param name="input"> A DTO containing the user's credentials</param>
+        /// <returns>The bearer token (in JWT format")</returns>
         [HttpPost]
         [ResponseCache(CacheProfileName = "NoCache")]
+        [ProducesResponseType(typeof(string), 200)]
+        [ProducesResponseType(typeof(BadRequestObjectResult), 400)]
+        [ProducesResponseType(typeof(ProblemDetails), 401)]
         public async Task<ActionResult> Login(LoginDTO input)
         {
             try
